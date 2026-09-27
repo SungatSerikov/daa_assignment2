@@ -3,8 +3,6 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Locale;
 import java.util.Random;
 
@@ -31,7 +29,7 @@ public final class Benchmark {
 
             for (int n : SIZES) {
                 Random random = new Random(42);
-                int[] values = randomUniquePositiveValues(n, random);
+                int[] values = randomPositiveValues(n, random);
                 int[] getIndices = randomIndices(GET_COUNT, n, random);
                 int[] searchValues = searchValues(values, random);
                 int[] insertedValues = randomValues(UPDATE_COUNT, random);
@@ -299,27 +297,22 @@ public final class Benchmark {
     }
 
     private static long searchComparisons(int[] values, int[] queries) {
-        HashMap<Integer, Integer> positions = new HashMap<>();
-        for (int i = 0; i < values.length; i++) {
-            positions.put(values[i], i);
-        }
         long total = 0;
         for (int query : queries) {
-            Integer position = positions.get(query);
-            total += position == null ? values.length : position + 1L;
+            for (int value : values) {
+                total++;
+                if (value == query) {
+                    break;
+                }
+            }
         }
         return total;
     }
 
-    private static int[] randomUniquePositiveValues(int n, Random random) {
+    private static int[] randomPositiveValues(int n, Random random) {
         int[] values = new int[n];
-        HashSet<Integer> used = new HashSet<>();
         for (int i = 0; i < n; i++) {
-            int value;
-            do {
-                value = 1 + random.nextInt(Integer.MAX_VALUE - 1);
-            } while (!used.add(value));
-            values[i] = value;
+            values[i] = 1 + random.nextInt(1_000_000);
         }
         return values;
     }
@@ -396,7 +389,7 @@ public final class Benchmark {
     private static void warmUp() {
         int n = 1_000;
         Random random = new Random(42);
-        int[] values = randomUniquePositiveValues(n, random);
+        int[] values = randomPositiveValues(n, random);
         int[] indices = randomIndices(GET_COUNT, n, random);
         int[] queries = searchValues(values, random);
         int[] additions = randomValues(UPDATE_COUNT, random);

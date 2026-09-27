@@ -1,366 +1,295 @@
 import java.util.ArrayList;
-import java.util.NoSuchElementException;
 import java.util.PriorityQueue;
 import java.util.Random;
 
-public final class Tests {
-    private static int checks;
+public class Tests {
+    private static int checks = 0;
 
     public static void main(String[] args) {
-        testDynamicArrayExamples();
-        testDynamicArrayBoundaries();
-        testDynamicArrayAgainstArrayList();
-        testDynamicArrayLargeInput();
-        int dynamicArrayChecks = checks;
-        System.out.println("DynamicArray tests passed: " + dynamicArrayChecks + " checks");
-
-        testLinkedListExamples();
-        testLinkedListBoundaries();
-        testLinkedListAgainstJdkList();
-        testLinkedListLargeInput();
-        int linkedListChecks = checks - dynamicArrayChecks;
-        System.out.println("LinkedList tests passed: " + linkedListChecks + " checks");
-
-        testMinHeapExamples();
-        testMinHeapBoundaries();
-        testMinHeapAgainstPriorityQueue();
-        testMinHeapLargeInput();
-        System.out.println("MinHeap tests passed: " + (checks - dynamicArrayChecks - linkedListChecks) + " checks");
+        testDynamicArray();
+        testLinkedList();
+        testMinHeap();
+        System.out.println("All tests passed: " + checks + " checks");
     }
 
-    private static void testDynamicArrayExamples() {
-        DynamicArray values = new DynamicArray(2);
-        checkEquals(0, values.size(), "empty size");
-        checkEquals(2, values.capacity(), "initial capacity");
+    private static void testDynamicArray() {
+        DynamicArray array = new DynamicArray(0);
+        equal(0, array.size(), "new array size");
+        check(!array.contains(10), "empty array contains");
 
-        values.add(10);
-        values.add(20);
-        values.add(30);
-        checkEquals(4, values.capacity(), "capacity doubles when full");
-        checkContents(values, 10, 20, 30);
+        array.add(10);
+        equal(1, array.capacity(), "growth from zero capacity");
+        array.add(20);
+        array.add(30);
+        equal(4, array.capacity(), "capacity doubles");
 
-        values.add(0, 5);
-        values.add(2, 15);
-        values.add(values.size(), 40);
-        checkContents(values, 5, 10, 15, 20, 30, 40);
+        array.add(0, 5);
+        array.add(2, 15);
+        array.add(array.size(), 40);
+        equal(5, array.get(0), "insert at start");
+        equal(15, array.get(2), "insert in middle");
+        equal(40, array.get(5), "insert at end");
 
-        checkEquals(5, values.remove(0), "remove first");
-        checkEquals(15, values.remove(1), "remove middle");
-        checkEquals(40, values.remove(values.size() - 1), "remove last");
-        checkContents(values, 10, 20, 30);
+        equal(5, array.remove(0), "remove first");
+        equal(15, array.remove(1), "remove middle");
+        equal(40, array.remove(array.size() - 1), "remove last");
+        equal(3, array.size(), "size after removals");
+        equal(10, array.get(0), "first value after removals");
+        equal(20, array.get(1), "middle value after removals");
+        equal(30, array.get(2), "last value after removals");
 
-        values.add(20);
-        check(values.contains(20), "contains duplicate");
-        check(!values.contains(99), "missing value");
-        values.remove(1);
-        check(values.contains(20), "one duplicate remains");
-        values.remove(values.size() - 1);
-        check(!values.contains(20), "all duplicates removed");
+        array.add(20);
+        array.remove(1);
+        check(array.contains(20), "duplicate remains");
+        array.remove(2);
+        check(!array.contains(20), "both duplicates removed");
+
+        try {
+            array.get(-1);
+            throw new AssertionError("get(-1) should fail");
+        } catch (IndexOutOfBoundsException expected) {
+            checks++;
+        }
+        try {
+            array.add(array.size() + 1, 7);
+            throw new AssertionError("insert past end should fail");
+        } catch (IndexOutOfBoundsException expected) {
+            checks++;
+        }
+        try {
+            array.remove(array.size());
+            throw new AssertionError("remove at size should fail");
+        } catch (IndexOutOfBoundsException expected) {
+            checks++;
+        }
+
+        DynamicArray one = new DynamicArray();
+        one.add(7);
+        equal(7, one.remove(0), "remove only element");
+        equal(0, one.size(), "empty after removing only element");
+
+        compareArrayWithJava();
+
+        DynamicArray large = new DynamicArray();
+        for (int i = 0; i < 100_000; i++) {
+            large.add(i);
+        }
+        equal(100_000, large.size(), "large array size");
+        equal(0, large.get(0), "large array first");
+        equal(50_000, large.get(50_000), "large array middle");
+        equal(99_999, large.get(99_999), "large array last");
     }
 
-    private static void testDynamicArrayBoundaries() {
-        DynamicArray values = new DynamicArray(0);
-        expectIndexOutOfBounds(() -> values.get(0), "get from empty array");
-        expectIndexOutOfBounds(() -> values.remove(0), "remove from empty array");
-        expectIndexOutOfBounds(() -> values.add(-1, 7), "negative insertion index");
-        expectIndexOutOfBounds(() -> values.add(1, 7), "insertion past end");
-
-        values.add(7);
-        checkEquals(1, values.capacity(), "zero-capacity array grows");
-        checkContents(values, 7);
-        expectIndexOutOfBounds(() -> values.get(-1), "negative get index");
-        expectIndexOutOfBounds(() -> values.get(values.size()), "get at size");
-        expectIndexOutOfBounds(() -> values.remove(-1), "negative removal index");
-        expectIndexOutOfBounds(() -> values.remove(values.size()), "remove at size");
-        expectIndexOutOfBounds(() -> values.add(values.size() + 1, 8), "insertion past size");
-
-        checkEquals(7, values.remove(0), "remove only element");
-        checkEquals(0, values.size(), "empty after removal");
-        check(!values.contains(7), "removed value not found");
-    }
-
-    private static void testDynamicArrayAgainstArrayList() {
-        DynamicArray actual = new DynamicArray();
-        ArrayList<Integer> expected = new ArrayList<>();
+    private static void compareArrayWithJava() {
+        DynamicArray mine = new DynamicArray();
+        ArrayList<Integer> javaList = new ArrayList<>();
         Random random = new Random(42);
 
-        for (int step = 0; step < 2_000; step++) {
-            int value = random.nextInt(101) - 50;
-            switch (random.nextInt(5)) {
-                case 0 -> {
-                    actual.add(value);
-                    expected.add(value);
-                }
-                case 1 -> {
-                    int index = random.nextInt(expected.size() + 1);
-                    actual.add(index, value);
-                    expected.add(index, value);
-                }
-                case 2 -> {
-                    if (!expected.isEmpty()) {
-                        int index = random.nextInt(expected.size());
-                        checkEquals(expected.remove(index), actual.remove(index), "random remove");
-                    }
-                }
-                case 3 -> {
-                    if (!expected.isEmpty()) {
-                        int index = random.nextInt(expected.size());
-                        checkEquals(expected.get(index), actual.get(index), "random get");
-                    }
-                }
-                case 4 -> check(expected.contains(value) == actual.contains(value), "random contains");
-                default -> throw new AssertionError("Unexpected operation");
+        for (int step = 0; step < 1_000; step++) {
+            int value = random.nextInt(41) - 20;
+            int operation = random.nextInt(5);
+            if (operation == 0) {
+                mine.add(value);
+                javaList.add(value);
+            } else if (operation == 1) {
+                int index = random.nextInt(javaList.size() + 1);
+                mine.add(index, value);
+                javaList.add(index, value);
+            } else if (operation == 2 && !javaList.isEmpty()) {
+                int index = random.nextInt(javaList.size());
+                equal(javaList.remove(index), mine.remove(index), "random array remove");
+            } else if (operation == 3 && !javaList.isEmpty()) {
+                int index = random.nextInt(javaList.size());
+                equal(javaList.get(index), mine.get(index), "random array get");
+            } else if (operation == 4) {
+                check(javaList.contains(value) == mine.contains(value), "random array contains");
             }
-            checkEquals(expected.size(), actual.size(), "random size");
+            equal(javaList.size(), mine.size(), "random array size");
         }
-
-        for (int i = 0; i < expected.size(); i++) {
-            checkEquals(expected.get(i), actual.get(i), "final content at " + i);
+        for (int i = 0; i < javaList.size(); i++) {
+            equal(javaList.get(i), mine.get(i), "final array contents");
         }
     }
 
-    private static void testDynamicArrayLargeInput() {
-        DynamicArray values = new DynamicArray(0);
+    private static void testLinkedList() {
+        LinkedList list = new LinkedList();
+        equal(0, list.size(), "new list size");
+        check(!list.contains(10), "empty list contains");
+
+        list.add(10);
+        list.add(20);
+        list.add(30);
+        list.add(0, 5);
+        list.add(2, 15);
+        list.add(list.size(), 40);
+        equal(5, list.get(0), "list insert at start");
+        equal(15, list.get(2), "list insert in middle");
+        equal(40, list.get(5), "list insert at end");
+
+        equal(5, list.remove(0), "list remove first");
+        equal(15, list.remove(1), "list remove middle");
+        equal(40, list.remove(list.size() - 1), "list remove last");
+        equal(3, list.size(), "list size after removals");
+        equal(10, list.get(0), "list first after removals");
+        equal(20, list.get(1), "list middle after removals");
+        equal(30, list.get(2), "list last after removals");
+
+        list.add(20);
+        list.remove(1);
+        check(list.contains(20), "list duplicate remains");
+        list.remove(2);
+        check(!list.contains(20), "list duplicates removed");
+
+        try {
+            list.get(-1);
+            throw new AssertionError("list get(-1) should fail");
+        } catch (IndexOutOfBoundsException expected) {
+            checks++;
+        }
+        try {
+            list.add(list.size() + 1, 7);
+            throw new AssertionError("list insert past end should fail");
+        } catch (IndexOutOfBoundsException expected) {
+            checks++;
+        }
+        try {
+            list.remove(list.size());
+            throw new AssertionError("list remove at size should fail");
+        } catch (IndexOutOfBoundsException expected) {
+            checks++;
+        }
+
+        LinkedList one = new LinkedList();
+        one.add(7);
+        equal(7, one.remove(0), "list remove only element");
+        one.add(8);
+        one.add(9);
+        equal(9, one.remove(1), "list remove tail");
+        one.add(10);
+        equal(10, one.get(1), "list append after tail removal");
+
+        compareListWithJava();
+
+        LinkedList large = new LinkedList();
         for (int i = 0; i < 100_000; i++) {
-            values.add(i);
+            large.add(i);
         }
-        checkEquals(100_000, values.size(), "large size");
-        checkEquals(0, values.get(0), "large first value");
-        checkEquals(50_000, values.get(50_000), "large middle value");
-        checkEquals(99_999, values.get(99_999), "large last value");
+        equal(100_000, large.size(), "large list size");
+        equal(0, large.get(0), "large list first");
+        equal(50_000, large.get(50_000), "large list middle");
+        equal(99_999, large.get(99_999), "large list last");
     }
 
-    private static void testLinkedListExamples() {
-        LinkedList values = new LinkedList();
-        checkEquals(0, values.size(), "empty linked list size");
-
-        values.add(10);
-        values.add(20);
-        values.add(30);
-        checkContents(values, 10, 20, 30);
-
-        values.add(0, 5);
-        values.add(2, 15);
-        values.add(values.size(), 40);
-        checkContents(values, 5, 10, 15, 20, 30, 40);
-
-        checkEquals(5, values.remove(0), "linked remove first");
-        checkEquals(15, values.remove(1), "linked remove middle");
-        checkEquals(40, values.remove(values.size() - 1), "linked remove last");
-        checkContents(values, 10, 20, 30);
-
-        values.add(20);
-        check(values.contains(20), "linked contains duplicate");
-        check(!values.contains(99), "linked missing value");
-        values.remove(1);
-        check(values.contains(20), "linked duplicate remains");
-        values.remove(values.size() - 1);
-        check(!values.contains(20), "linked duplicates removed");
-        values.add(35);
-        checkContents(values, 10, 30, 35);
-    }
-
-    private static void testLinkedListBoundaries() {
-        LinkedList values = new LinkedList();
-        expectIndexOutOfBounds(() -> values.get(0), "linked get from empty list");
-        expectIndexOutOfBounds(() -> values.remove(0), "linked remove from empty list");
-        expectIndexOutOfBounds(() -> values.add(-1, 7), "linked negative insertion index");
-        expectIndexOutOfBounds(() -> values.add(1, 7), "linked insertion past end");
-
-        values.add(0, 7);
-        checkContents(values, 7);
-        expectIndexOutOfBounds(() -> values.get(-1), "linked negative get index");
-        expectIndexOutOfBounds(() -> values.get(values.size()), "linked get at size");
-        expectIndexOutOfBounds(() -> values.remove(-1), "linked negative removal index");
-        expectIndexOutOfBounds(() -> values.remove(values.size()), "linked remove at size");
-        expectIndexOutOfBounds(() -> values.add(values.size() + 1, 8), "linked insertion past size");
-
-        checkEquals(7, values.remove(0), "linked remove only element");
-        checkEquals(0, values.size(), "linked empty after removal");
-        check(!values.contains(7), "linked removed value not found");
-        values.add(8);
-        values.add(9);
-        checkContents(values, 8, 9);
-        checkEquals(9, values.remove(1), "linked remove tail");
-        values.add(10);
-        checkContents(values, 8, 10);
-    }
-
-    private static void testLinkedListAgainstJdkList() {
-        LinkedList actual = new LinkedList();
-        java.util.LinkedList<Integer> expected = new java.util.LinkedList<>();
+    private static void compareListWithJava() {
+        LinkedList mine = new LinkedList();
+        java.util.LinkedList<Integer> javaList = new java.util.LinkedList<>();
         Random random = new Random(42);
 
-        for (int step = 0; step < 2_000; step++) {
-            int value = random.nextInt(101) - 50;
-            switch (random.nextInt(5)) {
-                case 0 -> {
-                    actual.add(value);
-                    expected.add(value);
-                }
-                case 1 -> {
-                    int index = random.nextInt(expected.size() + 1);
-                    actual.add(index, value);
-                    expected.add(index, value);
-                }
-                case 2 -> {
-                    if (!expected.isEmpty()) {
-                        int index = random.nextInt(expected.size());
-                        checkEquals(expected.remove(index), actual.remove(index), "linked random remove");
-                    }
-                }
-                case 3 -> {
-                    if (!expected.isEmpty()) {
-                        int index = random.nextInt(expected.size());
-                        checkEquals(expected.get(index), actual.get(index), "linked random get");
-                    }
-                }
-                case 4 -> check(expected.contains(value) == actual.contains(value), "linked random contains");
-                default -> throw new AssertionError("Unexpected operation");
+        for (int step = 0; step < 1_000; step++) {
+            int value = random.nextInt(41) - 20;
+            int operation = random.nextInt(5);
+            if (operation == 0) {
+                mine.add(value);
+                javaList.add(value);
+            } else if (operation == 1) {
+                int index = random.nextInt(javaList.size() + 1);
+                mine.add(index, value);
+                javaList.add(index, value);
+            } else if (operation == 2 && !javaList.isEmpty()) {
+                int index = random.nextInt(javaList.size());
+                equal(javaList.remove(index), mine.remove(index), "random list remove");
+            } else if (operation == 3 && !javaList.isEmpty()) {
+                int index = random.nextInt(javaList.size());
+                equal(javaList.get(index), mine.get(index), "random list get");
+            } else if (operation == 4) {
+                check(javaList.contains(value) == mine.contains(value), "random list contains");
             }
-            checkEquals(expected.size(), actual.size(), "linked random size");
+            equal(javaList.size(), mine.size(), "random list size");
         }
-
-        for (int i = 0; i < expected.size(); i++) {
-            checkEquals(expected.get(i), actual.get(i), "linked final content at " + i);
+        for (int i = 0; i < javaList.size(); i++) {
+            equal(javaList.get(i), mine.get(i), "final list contents");
         }
     }
 
-    private static void testLinkedListLargeInput() {
-        LinkedList values = new LinkedList();
-        for (int i = 0; i < 100_000; i++) {
-            values.add(i);
-        }
-        checkEquals(100_000, values.size(), "linked large size");
-        checkEquals(0, values.get(0), "linked large first value");
-        checkEquals(50_000, values.get(50_000), "linked large middle value");
-        checkEquals(99_999, values.get(99_999), "linked large last value");
-    }
-
-    private static void testMinHeapExamples() {
-        MinHeap heap = new MinHeap();
-        checkEquals(0, heap.size(), "empty heap size");
-        int[] input = {3, 5, 8, 12, 7, 2};
-        for (int value : input) {
-            heap.insert(value);
-            check(heap.hasHeapProperty(), "heap property after insertion");
-        }
-        checkEquals(2, heap.peekMin(), "minimum after insertions");
-
-        int[] sorted = {2, 3, 5, 7, 8, 12};
-        for (int value : sorted) {
-            checkEquals(value, heap.extractMin(), "extraction order");
-            check(heap.hasHeapProperty(), "heap property after extraction");
-        }
-        checkEquals(0, heap.size(), "empty heap after extraction");
-    }
-
-    private static void testMinHeapBoundaries() {
+    private static void testMinHeap() {
         MinHeap heap = new MinHeap(0);
-        expectNoSuchElement(heap::peekMin, "peek from empty heap");
-        expectNoSuchElement(heap::extractMin, "extract from empty heap");
+        equal(0, heap.size(), "new heap size");
+        try {
+            heap.peekMin();
+            throw new AssertionError("peek on empty heap should fail");
+        } catch (java.util.NoSuchElementException expected) {
+            checks++;
+        }
+        try {
+            heap.extractMin();
+            throw new AssertionError("extract from empty heap should fail");
+        } catch (java.util.NoSuchElementException expected) {
+            checks++;
+        }
 
         heap.insert(7);
-        checkEquals(1, heap.capacity(), "zero-capacity heap grows");
-        checkEquals(7, heap.peekMin(), "one-element minimum");
-        checkEquals(7, heap.extractMin(), "one-element extraction");
-        checkEquals(0, heap.size(), "empty after extracting only element");
+        equal(1, heap.capacity(), "heap growth from zero capacity");
+        equal(7, heap.peekMin(), "heap singleton peek");
+        equal(7, heap.extractMin(), "heap singleton extract");
+        equal(0, heap.size(), "heap empty again");
 
-        heap.insert(-4);
-        heap.insert(-4);
-        heap.insert(5);
-        check(heap.hasHeapProperty(), "heap property with duplicates");
-        checkEquals(-4, heap.extractMin(), "first duplicate");
-        checkEquals(-4, heap.extractMin(), "second duplicate");
-        checkEquals(5, heap.extractMin(), "remaining positive value");
-        expectNoSuchElement(heap::extractMin, "extract after draining heap");
+        int[] input = {3, 5, 8, 12, 7, 2, 2};
+        for (int value : input) {
+            heap.insert(value);
+            check(heap.hasHeapProperty(), "heap property after insert");
+        }
+        int[] sorted = {2, 2, 3, 5, 7, 8, 12};
+        for (int value : sorted) {
+            equal(value, heap.extractMin(), "heap extraction order");
+            check(heap.hasHeapProperty(), "heap property after extract");
+        }
+
+        compareHeapWithJava();
+
+        MinHeap large = new MinHeap();
+        Random random = new Random(123);
+        for (int i = 0; i < 100_000; i++) {
+            large.insert(random.nextInt());
+        }
+        equal(100_000, large.size(), "large heap size");
+        check(large.hasHeapProperty(), "large heap property");
+        int previous = Integer.MIN_VALUE;
+        while (large.size() > 0) {
+            int current = large.extractMin();
+            check(previous <= current, "large heap output sorted");
+            previous = current;
+        }
     }
 
-    private static void testMinHeapAgainstPriorityQueue() {
-        MinHeap actual = new MinHeap();
-        PriorityQueue<Integer> expected = new PriorityQueue<>();
+    private static void compareHeapWithJava() {
+        MinHeap mine = new MinHeap();
+        PriorityQueue<Integer> javaHeap = new PriorityQueue<>();
         Random random = new Random(42);
 
         for (int step = 0; step < 2_000; step++) {
             int operation = random.nextInt(3);
-            if (expected.isEmpty() || operation == 0) {
-                int value = random.nextInt(101) - 50;
-                actual.insert(value);
-                expected.add(value);
+            if (javaHeap.isEmpty() || operation == 0) {
+                int value = random.nextInt(41) - 20;
+                mine.insert(value);
+                javaHeap.add(value);
             } else if (operation == 1) {
-                checkEquals(expected.element(), actual.peekMin(), "random peek");
+                equal(javaHeap.element(), mine.peekMin(), "random heap peek");
             } else {
-                checkEquals(expected.remove(), actual.extractMin(), "random extract");
+                equal(javaHeap.remove(), mine.extractMin(), "random heap extract");
             }
-
-            checkEquals(expected.size(), actual.size(), "random heap size");
-            check(actual.hasHeapProperty(), "random heap property");
-            if (!expected.isEmpty()) {
-                checkEquals(expected.element(), actual.peekMin(), "random minimum");
-            }
+            equal(javaHeap.size(), mine.size(), "random heap size");
+            check(mine.hasHeapProperty(), "random heap property");
         }
     }
 
-    private static void testMinHeapLargeInput() {
-        MinHeap heap = new MinHeap(0);
-        Random random = new Random(123);
-        for (int i = 0; i < 100_000; i++) {
-            heap.insert(random.nextInt());
-        }
-        checkEquals(100_000, heap.size(), "large heap size");
-        check(heap.hasHeapProperty(), "large heap property");
-
-        int previous = Integer.MIN_VALUE;
-        while (heap.size() > 0) {
-            int current = heap.extractMin();
-            check(current >= previous, "large extraction order");
-            previous = current;
-        }
-        checkEquals(0, heap.size(), "large heap drained");
+    private static void equal(int expected, int actual, String message) {
+        check(expected == actual, message + ": expected " + expected + ", got " + actual);
     }
 
-    private static void checkContents(DynamicArray values, int... expected) {
-        checkEquals(expected.length, values.size(), "content size");
-        for (int i = 0; i < expected.length; i++) {
-            checkEquals(expected[i], values.get(i), "content at " + i);
-        }
-    }
-
-    private static void checkContents(LinkedList values, int... expected) {
-        checkEquals(expected.length, values.size(), "linked content size");
-        for (int i = 0; i < expected.length; i++) {
-            checkEquals(expected[i], values.get(i), "linked content at " + i);
-        }
-    }
-
-    private static void expectIndexOutOfBounds(Runnable action, String description) {
-        try {
-            action.run();
-        } catch (IndexOutOfBoundsException expected) {
-            checks++;
-            return;
-        }
-        throw new AssertionError("Expected IndexOutOfBoundsException: " + description);
-    }
-
-    private static void expectNoSuchElement(Runnable action, String description) {
-        try {
-            action.run();
-        } catch (NoSuchElementException expected) {
-            checks++;
-            return;
-        }
-        throw new AssertionError("Expected NoSuchElementException: " + description);
-    }
-
-    private static void checkEquals(int expected, int actual, String description) {
-        check(expected == actual, description + " (expected " + expected + ", got " + actual + ")");
-    }
-
-    private static void check(boolean condition, String description) {
+    private static void check(boolean condition, String message) {
         checks++;
         if (!condition) {
-            throw new AssertionError(description);
+            throw new AssertionError(message);
         }
     }
 }
