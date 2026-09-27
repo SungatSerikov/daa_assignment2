@@ -1,4 +1,6 @@
 import java.util.ArrayList;
+import java.util.NoSuchElementException;
+import java.util.PriorityQueue;
 import java.util.Random;
 
 public final class Tests {
@@ -16,7 +18,14 @@ public final class Tests {
         testLinkedListBoundaries();
         testLinkedListAgainstJdkList();
         testLinkedListLargeInput();
-        System.out.println("LinkedList tests passed: " + (checks - dynamicArrayChecks) + " checks");
+        int linkedListChecks = checks - dynamicArrayChecks;
+        System.out.println("LinkedList tests passed: " + linkedListChecks + " checks");
+
+        testMinHeapExamples();
+        testMinHeapBoundaries();
+        testMinHeapAgainstPriorityQueue();
+        testMinHeapLargeInput();
+        System.out.println("MinHeap tests passed: " + (checks - dynamicArrayChecks - linkedListChecks) + " checks");
     }
 
     private static void testDynamicArrayExamples() {
@@ -228,6 +237,88 @@ public final class Tests {
         checkEquals(99_999, values.get(99_999), "linked large last value");
     }
 
+    private static void testMinHeapExamples() {
+        MinHeap heap = new MinHeap();
+        checkEquals(0, heap.size(), "empty heap size");
+        int[] input = {3, 5, 8, 12, 7, 2};
+        for (int value : input) {
+            heap.insert(value);
+            check(heap.hasHeapProperty(), "heap property after insertion");
+        }
+        checkEquals(2, heap.peekMin(), "minimum after insertions");
+
+        int[] sorted = {2, 3, 5, 7, 8, 12};
+        for (int value : sorted) {
+            checkEquals(value, heap.extractMin(), "extraction order");
+            check(heap.hasHeapProperty(), "heap property after extraction");
+        }
+        checkEquals(0, heap.size(), "empty heap after extraction");
+    }
+
+    private static void testMinHeapBoundaries() {
+        MinHeap heap = new MinHeap(0);
+        expectNoSuchElement(heap::peekMin, "peek from empty heap");
+        expectNoSuchElement(heap::extractMin, "extract from empty heap");
+
+        heap.insert(7);
+        checkEquals(1, heap.capacity(), "zero-capacity heap grows");
+        checkEquals(7, heap.peekMin(), "one-element minimum");
+        checkEquals(7, heap.extractMin(), "one-element extraction");
+        checkEquals(0, heap.size(), "empty after extracting only element");
+
+        heap.insert(-4);
+        heap.insert(-4);
+        heap.insert(5);
+        check(heap.hasHeapProperty(), "heap property with duplicates");
+        checkEquals(-4, heap.extractMin(), "first duplicate");
+        checkEquals(-4, heap.extractMin(), "second duplicate");
+        checkEquals(5, heap.extractMin(), "remaining positive value");
+        expectNoSuchElement(heap::extractMin, "extract after draining heap");
+    }
+
+    private static void testMinHeapAgainstPriorityQueue() {
+        MinHeap actual = new MinHeap();
+        PriorityQueue<Integer> expected = new PriorityQueue<>();
+        Random random = new Random(42);
+
+        for (int step = 0; step < 2_000; step++) {
+            int operation = random.nextInt(3);
+            if (expected.isEmpty() || operation == 0) {
+                int value = random.nextInt(101) - 50;
+                actual.insert(value);
+                expected.add(value);
+            } else if (operation == 1) {
+                checkEquals(expected.element(), actual.peekMin(), "random peek");
+            } else {
+                checkEquals(expected.remove(), actual.extractMin(), "random extract");
+            }
+
+            checkEquals(expected.size(), actual.size(), "random heap size");
+            check(actual.hasHeapProperty(), "random heap property");
+            if (!expected.isEmpty()) {
+                checkEquals(expected.element(), actual.peekMin(), "random minimum");
+            }
+        }
+    }
+
+    private static void testMinHeapLargeInput() {
+        MinHeap heap = new MinHeap(0);
+        Random random = new Random(123);
+        for (int i = 0; i < 100_000; i++) {
+            heap.insert(random.nextInt());
+        }
+        checkEquals(100_000, heap.size(), "large heap size");
+        check(heap.hasHeapProperty(), "large heap property");
+
+        int previous = Integer.MIN_VALUE;
+        while (heap.size() > 0) {
+            int current = heap.extractMin();
+            check(current >= previous, "large extraction order");
+            previous = current;
+        }
+        checkEquals(0, heap.size(), "large heap drained");
+    }
+
     private static void checkContents(DynamicArray values, int... expected) {
         checkEquals(expected.length, values.size(), "content size");
         for (int i = 0; i < expected.length; i++) {
@@ -250,6 +341,16 @@ public final class Tests {
             return;
         }
         throw new AssertionError("Expected IndexOutOfBoundsException: " + description);
+    }
+
+    private static void expectNoSuchElement(Runnable action, String description) {
+        try {
+            action.run();
+        } catch (NoSuchElementException expected) {
+            checks++;
+            return;
+        }
+        throw new AssertionError("Expected NoSuchElementException: " + description);
     }
 
     private static void checkEquals(int expected, int actual, String description) {
