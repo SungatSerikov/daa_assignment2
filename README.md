@@ -6,39 +6,39 @@ I implemented a Dynamic Array, a singly Linked List, and a Min-Heap in Java. The
 
 ## 2. Complexity Analysis
 
-Here `n` is the current number of elements. `Θ(f(n))` gives a tight bound, so it also gives an upper bound `O(f(n))` and a lower bound `Ω(f(n))`. For example, array `get(index)` has lower bound `Ω(1)`, upper bound `O(1)`, and tight bound `Θ(1)`. Best, average, and worst describe different cases of an operation. For averages below, indices are chosen uniformly; half of search queries miss and half find a value at a uniformly chosen position. The best case for append or heap insertion assumes spare capacity.
+Here `n` is the current number of elements. `O` is an upper bound, `Ω` is a lower bound, and `Θ` is a tight bound. The last column in each table gives bounds across all cases; the best, average, and worst columns give tight bounds for those cases. For averages below, indices are chosen uniformly; half of search queries miss and half find a value at a uniformly chosen position. The best case for append or heap insertion assumes spare capacity.
 
 ### Dynamic Array
 
-| Operation | Best | Average | Worst | Extra space |
-| --- | --- | --- | --- | --- |
-| `add(x)` | `Θ(1)` | `Θ(1)` amortized | `Θ(n)` on resize | `Θ(1)`, or `Θ(n)` on resize |
-| `add(index, x)` | `Θ(1)` | `Θ(n)` | `Θ(n)` | `Θ(1)`, or `Θ(n)` on resize |
-| `remove(index)` | `Θ(1)` | `Θ(n)` | `Θ(n)` | `Θ(1)` |
-| `get(index)` | `Θ(1)` | `Θ(1)` | `Θ(1)` | `Θ(1)` |
-| `contains(x)` | `Θ(1)` | `Θ(n)` | `Θ(n)` | `Θ(1)` |
+| Operation | Best | Average | Worst | Extra space | Bounds (Ω / O) |
+| --- | --- | --- | --- | --- | --- |
+| `add(x)` | `Θ(1)` | `Θ(1)` amortized | `Θ(n)` on resize | `Θ(1)`, or `Θ(n)` on resize | `Ω(1)` / `O(n)` |
+| `add(index, x)` | `Θ(1)` | `Θ(n)` | `Θ(n)` | `Θ(1)`, or `Θ(n)` on resize | `Ω(1)` / `O(n)` |
+| `remove(index)` | `Θ(1)` | `Θ(n)` | `Θ(n)` | `Θ(1)` | `Ω(1)` / `O(n)` |
+| `get(index)` | `Θ(1)` | `Θ(1)` | `Θ(1)` | `Θ(1)` | `Ω(1)` / `O(1)` |
+| `contains(x)` | `Θ(1)` | `Θ(n)` | `Θ(n)` | `Θ(1)` | `Ω(1)` / `O(n)` |
 
 `get(index)` reads one position. Inserting or removing near the front shifts many values. Appending usually takes constant time, but copying into a larger array costs `Θ(n)` when it is full. Over many appends, that copying averages to `Θ(1)` per call (amortized).
 
 ### Linked List
 
-| Operation | Best | Average | Worst | Extra space |
-| --- | --- | --- | --- | --- |
-| `add(x)` | `Θ(1)` | `Θ(1)` | `Θ(1)` | `Θ(1)` |
-| `add(index, x)` | `Θ(1)` | `Θ(n)` | `Θ(n)` | `Θ(1)` |
-| `remove(index)` | `Θ(1)` | `Θ(n)` | `Θ(n)` | `Θ(1)` |
-| `get(index)` | `Θ(1)` | `Θ(n)` | `Θ(n)` | `Θ(1)` |
-| `contains(x)` | `Θ(1)` | `Θ(n)` | `Θ(n)` | `Θ(1)` |
+| Operation | Best | Average | Worst | Extra space | Bounds (Ω / O) |
+| --- | --- | --- | --- | --- | --- |
+| `add(x)` | `Θ(1)` | `Θ(1)` | `Θ(1)` | `Θ(1)` | `Ω(1)` / `O(1)` |
+| `add(index, x)` | `Θ(1)` | `Θ(n)` | `Θ(n)` | `Θ(1)` | `Ω(1)` / `O(n)` |
+| `remove(index)` | `Θ(1)` | `Θ(n)` | `Θ(n)` | `Θ(1)` | `Ω(1)` / `O(n)` |
+| `get(index)` | `Θ(1)` | `Θ(n)` | `Θ(n)` | `Θ(1)` | `Ω(1)` / `O(n)` |
+| `contains(x)` | `Θ(1)` | `Θ(n)` | `Θ(n)` | `Θ(1)` | `Ω(1)` / `O(n)` |
 
 I keep a `tail` reference, so `add(x)` does not need a traversal. Adding or removing at the front is also constant time. For an index in the middle, the list must follow links from `head`. Removing the last node is linear because this singly linked list must find the node before it.
 
 ### Min-Heap
 
-| Operation | Best | Average | Worst | Extra space |
-| --- | --- | --- | --- | --- |
-| `insert(x)` | `Θ(1)` | expected `Θ(1)`* | `Θ(log n)`, or `Θ(n)` on resize | `Θ(1)`, or `Θ(n)` on resize |
-| `peekMin()` | `Θ(1)` | `Θ(1)` | `Θ(1)` | `Θ(1)` |
-| `extractMin()` | `Θ(1)` | expected `Θ(log n)`* | `Θ(log n)` | `Θ(1)` |
+| Operation | Best | Average | Worst | Extra space | Bounds (Ω / O) |
+| --- | --- | --- | --- | --- | --- |
+| `insert(x)` | `Θ(1)` | expected `Θ(1)`* | `Θ(log n)`, or `Θ(n)` on resize | `Θ(1)`, or `Θ(n)` on resize | `Ω(1)` / `O(n)` |
+| `peekMin()` | `Θ(1)` | `Θ(1)` | `Θ(1)` | `Θ(1)` | `Ω(1)` / `O(1)` |
+| `extractMin()` | `Θ(1)` | expected `Θ(log n)`* | `Θ(log n)` | `Θ(1)` | `Ω(1)` / `O(log n)` |
 
 The heap has about `log₂ n` levels. `peekMin()` reads the root, while insertion may move up and extraction may move down one path. A full backing array also has to grow during some insertions. *The average figures assume random distinct priorities; the cost of resizing is averaged over many insertions.*
 
